@@ -24,6 +24,8 @@ class EditDistanceEnvironment:
         make_sample_func: Callable[[str, str], Dict],
         task_name: str = "transform",
         default_samples: Optional[List[Dict]] = None,
+        hf_dataset_id: str = None,
+        column: str = None
     ):
         """
         Args:
@@ -37,6 +39,8 @@ class EditDistanceEnvironment:
         self.make_sample = make_sample_func
         self.task_name = task_name
         self.default_samples = default_samples or []
+        self.hf_dataset_id = hf_dataset_id
+        self.column = column
 
     def create_sample_set(self) -> List[Dict]:
         """Create default sample set - can be overridden"""
@@ -96,14 +100,18 @@ class EditDistanceEnvironment:
         **kwargs,
     ) -> vf.SingleTurnEnv:
         """Load the verifier environment"""
-        if hf_dataset_id and column:
+        if (hf_dataset_id is not None and column is not None) or (self.hf_dataset_id is not None and self.column is not None):
+            if column is not None:
+                self.hf_dataset_id = hf_dataset_id
+                self.column = column
+                
             from datasets import load_dataset
 
-            hf_dataset = load_dataset(hf_dataset_id)
+            hf_dataset = load_dataset(self.hf_dataset_id)
             split_name = list(hf_dataset.keys())[0]
             hf_data = hf_dataset[split_name]
             dataset = self.build_data(
-                [self.make_sample(item[column], **kwargs) for item in hf_data]
+                [self.make_sample(item[self.column], **kwargs) for item in hf_data]
             )
         else:
             dataset = self.build_data(self.create_sample_set())
